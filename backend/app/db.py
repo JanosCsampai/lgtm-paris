@@ -1,3 +1,4 @@
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import GEOSPHERE, MongoClient
 
@@ -18,7 +19,7 @@ def get_sync_db():
 
 async def connect():
     global client, sync_client
-    client = AsyncIOMotorClient(settings.mongo_url)
+    client = AsyncIOMotorClient(settings.mongo_url, tlsCAFile=certifi.where())
     sync_client = MongoClient(settings.mongo_url)
 
 
@@ -39,3 +40,10 @@ async def ensure_indexes():
 
     await db.observations.create_index([("location", GEOSPHERE)])
     await db.observations.create_index([("category", 1), ("service_type", 1)])
+
+    await db.stripe_customers.create_index("email", unique=True)
+    await db.stripe_customers.create_index("stripe_customer_id", unique=True)
+
+    await db.bookings.create_index("stripe_payment_intent_id", unique=True)
+    await db.bookings.create_index("stripe_card_id", unique=True)
+    await db.bookings.create_index("customer_id")

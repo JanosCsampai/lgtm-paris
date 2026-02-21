@@ -6,3 +6,5 @@ pydantic-settings
 python-dotenv
 langchain-openai
 langchain-mongodb
+stripe>=7.0.0
+certifi
