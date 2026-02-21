@@ -1,4 +1,4 @@
-# LGTM — Local Service Price Intelligence
+# Plumline — Local Service Price Intelligence
 
 Price transparency for local services. Compare what mechanics, electricians, and other service providers charge in your area.
 
@@ -17,7 +17,7 @@ Edit `.env` and paste the shared MongoDB Atlas connection string:
 
 ```
 MONGO_URL=mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
-MONGO_DB=lgtm
+MONGO_DB=plumline
 ```
 
 ### 2. Install & run the backend

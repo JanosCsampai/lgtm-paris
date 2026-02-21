@@ -15,6 +15,7 @@ export interface ProviderWithPrices {
   id: string;
   name: string;
   category: string;
+  category_label: string;
   address: string;
   city: string;
   location: GeoJSONPoint;
