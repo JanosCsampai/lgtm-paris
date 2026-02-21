@@ -4,3 +4,5 @@ motor
 pydantic[email]
 pydantic-settings
 python-dotenv
+stripe>=7.0.0
+certifi
