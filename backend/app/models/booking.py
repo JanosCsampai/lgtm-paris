@@ -9,7 +9,7 @@ class BookingCreate(BaseModel):
     provider_id: str = Field(..., description="MongoDB _id of the provider")
     amount: float = Field(..., gt=0, description="Service price")
     currency: str = Field(default="GBP", examples=["GBP", "EUR"])
-    agent_name: str = Field(default="LGTM Agent")
+    agent_name: str = Field(default="Plumline Agent")
 
 
 class BookingResponse(BaseModel):

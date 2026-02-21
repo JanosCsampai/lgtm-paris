@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LGTM — Local Service Price Intelligence",
+    title="Plumline — Local Service Price Intelligence",
     version="0.1.0",
     lifespan=lifespan,
 )

@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TrustLocal — Find Trusted Services Near You",
+  title: "Plumline — Local Service Price Intelligence",
   description:
-    "AI-powered local service search. Find verified professionals, real reviews, and nearby results in seconds.",
+    "Find out what local mechanics, electricians, and tradespeople charge near you. Real prices, nearby results.",
 };
 
 export default function RootLayout({

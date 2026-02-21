@@ -16,12 +16,6 @@ export const SUGGESTION_CHIPS = [
   "Cheapest phone fix nearby",
 ];
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  phone_repair: "Screen Repair",
-  mechanic: "Mechanic",
-  electrician: "Electrician",
-};
-
 // Tube line colours used as category swatches
 export const CATEGORY_SWATCHES: Record<string, string> = {
   phone_repair: "#E32017",   // Central line

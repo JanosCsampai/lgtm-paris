@@ -32,8 +32,7 @@ function formatPrice(price: number, currency: string): string {
 export function ResultCard({ provider }: ResultCardProps) {
   const [showModal, setShowModal] = useState(false);
   const lowest = getLowestPrice(provider);
-  const categoryLabel =
-    CATEGORY_LABELS[provider.category] ?? provider.category;
+  const categoryLabel = provider.category_label || provider.category;
   const swatch = CATEGORY_SWATCHES[provider.category] ?? "#6b7280";
 
   return (
