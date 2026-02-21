@@ -179,6 +179,9 @@ async def find_providers_with_prices(
                 city=p.get("city", ""),
                 location=p["location"],
                 distance_meters=doc["distance_meters"],
+                rating=p.get("rating"),
+                review_count=p.get("review_count"),
+                description=p.get("description"),
                 observations=[ObservationSummary(**o) for o in doc["observations"]],
             )
         )

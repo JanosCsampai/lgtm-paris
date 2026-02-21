@@ -29,6 +29,9 @@ class ProviderWithPrices(BaseModel):
     city: str
     location: GeoJSONPoint
     distance_meters: float
+    rating: float | None = None
+    review_count: int | None = None
+    description: str | None = None
     observations: list[ObservationSummary]
 
 
