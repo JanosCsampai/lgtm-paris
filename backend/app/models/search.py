@@ -25,6 +25,7 @@ class ProviderWithPrices(BaseModel):
     id: str
     name: str
     category: str
+    category_label: str = ""
     address: str
     city: str
     location: GeoJSONPoint
@@ -32,7 +33,7 @@ class ProviderWithPrices(BaseModel):
     rating: float | None = None
     review_count: int | None = None
     description: str | None = None
-    observations: list[ObservationSummary]
+    observations: list[ObservationSummary] = []
 
 
 class SearchResponse(BaseModel):

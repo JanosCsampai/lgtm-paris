@@ -12,7 +12,7 @@ async def create_stripe_customer(name: str, email: str) -> stripe.Customer:
         stripe.Customer.create,
         name=name,
         email=email,
-        metadata={"source": "lgtm"},
+        metadata={"source": "plumline"},
     )
 
 
@@ -66,8 +66,8 @@ async def topup_platform_balance(amount_pence: int, currency: str) -> stripe.Top
         stripe.Topup.create,
         amount=amount_pence,
         currency=currency,
-        description="LGTM platform top-up for issuing",
-        statement_descriptor="LGTM Topup",
+        description="Plumline platform top-up for issuing",
+        statement_descriptor="Plumline",
     )
 
 

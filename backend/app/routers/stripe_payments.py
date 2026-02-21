@@ -104,7 +104,7 @@ async def create_booking(body: BookingCreate):
         stripe_customer_id=customer["stripe_customer_id"],
         amount_pence=amount_pence,
         currency=currency,
-        description=f"LGTM booking: {body.service_type} at {provider['name']}",
+        description=f"Plumline booking: {body.service_type} at {provider['name']}",
         metadata={
             "service_type": body.service_type,
             "provider_id": body.provider_id,

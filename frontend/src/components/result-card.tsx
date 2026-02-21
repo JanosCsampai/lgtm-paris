@@ -2,7 +2,7 @@
 
 import { MapPin, Star } from "lucide-react";
 import type { ProviderWithPrices } from "@/lib/types";
-import { CATEGORY_LABELS, CATEGORY_SWATCHES } from "@/lib/constants";
+import { CATEGORY_SWATCHES } from "@/lib/constants";
 
 interface ResultCardProps {
   provider: ProviderWithPrices;
@@ -29,8 +29,7 @@ function formatPrice(price: number, currency: string): string {
 
 export function ResultCard({ provider }: ResultCardProps) {
   const lowest = getLowestPrice(provider);
-  const categoryLabel =
-    CATEGORY_LABELS[provider.category] ?? provider.category;
+  const categoryLabel = provider.category_label || provider.category;
   const swatch = CATEGORY_SWATCHES[provider.category] ?? "#6b7280";
 
   return (
