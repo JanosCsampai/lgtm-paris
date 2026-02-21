@@ -4,14 +4,14 @@ from playwright.async_api import async_playwright
 
 async def run_booking_agent(customer_data: dict, card_data: dict, appointment_data: dict):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, slow_mo=50)
+        browser = await p.chromium.launch(headless=False, slow_mo=500)
         page = await browser.new_page()
         await page.goto("http://localhost:3000")
 
-        # Personal details
-        await page.fill("#firstname", customer_data["firstname"])
-        await page.fill("#lastname", customer_data["lastname"])
-        await page.fill("#email", customer_data["email"])
+        # Personal details (type() simulates real keypresses, character by character)
+        await page.type("#firstname", customer_data["firstname"], delay=80)
+        await page.type("#lastname", customer_data["lastname"], delay=80)
+        await page.type("#email", customer_data["email"], delay=80)
 
         # Appointment (device and time are <select> dropdowns)
         await page.select_option("#device", appointment_data["device"])
@@ -19,9 +19,9 @@ async def run_booking_agent(customer_data: dict, card_data: dict, appointment_da
         await page.select_option("#time", appointment_data["time"])
 
         # Payment
-        await page.fill("#card-number", card_data["number"])
-        await page.fill("#expiry", card_data["expiry"])  # format: MM/YY
-        await page.fill("#cvc", card_data["cvc"])
+        await page.type("#card-number", card_data["number"], delay=80)
+        await page.type("#expiry", card_data["expiry"], delay=80)
+        await page.type("#cvc", card_data["cvc"], delay=120)
 
         # Submit the form
         await page.click("button[type='submit']")
