@@ -5,3 +5,7 @@ pydantic[email]
 pydantic-settings
 python-dotenv
 playwright
+langchain-openai
+langchain-mongodb
+stripe>=7.0.0
+certifi

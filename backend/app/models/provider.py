@@ -20,6 +20,9 @@ class ProviderCreate(BaseModel):
     location: GeoJSONPoint
     address: str = Field(..., examples=["123 High Street, London"])
     city: str = Field(default="London", examples=["London"])
+    rating: float | None = Field(default=None, ge=0, le=5, examples=[4.8])
+    review_count: int | None = Field(default=None, ge=0, examples=[214])
+    description: str | None = Field(default=None, examples=["Fast, friendly phone repairs."])
 
 
 class ProviderResponse(BaseModel):
@@ -29,6 +32,9 @@ class ProviderResponse(BaseModel):
     location: GeoJSONPoint
     address: str
     city: str
+    rating: float | None = None
+    review_count: int | None = None
+    description: str | None = None
     created_at: datetime
 
     model_config = {"populate_by_name": True}
