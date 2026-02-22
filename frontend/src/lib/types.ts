@@ -50,6 +50,7 @@ export interface SearchResponse {
   results: ProviderWithPrices[];
   discovery_triggered: boolean;
   price_stats: PriceStats | null;
+  scraping_in_progress: boolean;
 }
 
 export interface SearchParams {

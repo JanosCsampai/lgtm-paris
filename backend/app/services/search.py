@@ -29,6 +29,9 @@ TEXT_INDEX_NAME = "service_types_text"
 VECTOR_SCORE_THRESHOLD = 0.75
 TEXT_SCORE_THRESHOLD = 0.10
 
+_scraping_provider_ids: set[str] = set()
+_scrape_done_ids: set[str] = set()
+
 
 def _get_vector_store() -> MongoDBAtlasVectorSearch | None:
     """Returns None when embeddings are not configured."""
@@ -619,7 +622,10 @@ async def search(
     if not providers:
         try:
             discovered_ids = await asyncio.wait_for(
-                discover_external(query, slugs, lat, lng, radius_meters),
+                discover_external(
+                    query, slugs, lat, lng, radius_meters,
+                    condensed_name=condensed_name,
+                ),
                 timeout=8.0,
             )
         except asyncio.TimeoutError:
@@ -628,13 +634,22 @@ async def search(
             discovery_triggered = True
             providers = await find_providers_by_ids(discovered_ids, lat, lng, radius_meters)
 
+    scraping_in_progress = False
     if providers:
         primary_slug = slugs[0] if slugs else condensed_slug
         await asyncio.gather(
             _resolve_category_labels(providers),
-            _enrich_with_scraped_prices(providers, query, primary_slug),
             _resolve_inquiry_statuses(providers),
         )
+        needs_scrape = {p.id for p in providers if not p.observations}
+        new_to_scrape = needs_scrape - _scraping_provider_ids - _scrape_done_ids
+        if new_to_scrape:
+            asyncio.create_task(
+                _scrape_prices_background(providers, query, primary_slug)
+            )
+        currently_scraping = needs_scrape & _scraping_provider_ids
+        if new_to_scrape or currently_scraping:
+            scraping_in_progress = True
         _filter_price_outliers(providers)
 
     price_stats = _compute_price_stats(providers) if providers else None
@@ -645,7 +660,29 @@ async def search(
         results=providers,
         discovery_triggered=discovery_triggered,
         price_stats=price_stats,
+        scraping_in_progress=scraping_in_progress,
     )
+
+
+async def _scrape_prices_background(
+    providers: list[ProviderWithPrices],
+    query: str,
+    service_type_slug: str,
+) -> None:
+    """Fire-and-forget task that scrapes prices for providers missing observations."""
+    ids = {p.id for p in providers if not p.observations}
+    ids.difference_update(_scraping_provider_ids)
+    ids.difference_update(_scrape_done_ids)
+    if not ids:
+        return
+    _scraping_provider_ids.update(ids)
+    try:
+        await _enrich_with_scraped_prices(providers, query, service_type_slug)
+    except Exception:
+        logger.warning("Background price scraping failed", exc_info=True)
+    finally:
+        _scraping_provider_ids.difference_update(ids)
+        _scrape_done_ids.update(ids)
 
 
 async def _check_replies_background() -> None:

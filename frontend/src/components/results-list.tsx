@@ -3,7 +3,7 @@
 import type { PriceStats, ProviderWithPrices } from "@/lib/types";
 import { ResultCard } from "@/components/result-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SearchX } from "lucide-react";
+import { Loader2, SearchX } from "lucide-react";
 
 interface ResultsListProps {
   results: ProviderWithPrices[];
@@ -11,6 +11,7 @@ interface ResultsListProps {
   isLoading: boolean;
   error: Error | null;
   onRetry?: () => void;
+  scrapingInProgress?: boolean;
 }
 
 function ResultSkeleton() {
@@ -76,12 +77,31 @@ function PriceSummaryBar({ stats }: { stats: PriceStats }) {
   );
 }
 
+function PriceSummaryBarSkeleton() {
+  return (
+    <div className="mb-4 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <span>Fetching prices from providers&hellip;</span>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <Skeleton className="h-4 w-8" />
+        <div className="relative flex-1 h-1.5 rounded-full bg-border/40 overflow-hidden">
+          <div className="absolute inset-0 animate-pulse rounded-full bg-border/60" />
+        </div>
+        <Skeleton className="h-4 w-8" />
+      </div>
+    </div>
+  );
+}
+
 export function ResultsList({
   results,
   priceStats,
   isLoading,
   error,
   onRetry,
+  scrapingInProgress,
 }: ResultsListProps) {
   if (isLoading) {
     return (
@@ -141,15 +161,18 @@ export function ResultsList({
 
   return (
     <div>
-      {priceStats && priceStats.sample_size >= 2 && (
+      {priceStats && priceStats.sample_size >= 2 ? (
         <PriceSummaryBar stats={priceStats} />
-      )}
+      ) : scrapingInProgress ? (
+        <PriceSummaryBarSkeleton />
+      ) : null}
       <div className="divide-y divide-border">
         {sorted.map((provider) => (
           <ResultCard
             key={provider.id}
             provider={provider}
             priceStats={priceStats}
+            scrapingInProgress={scrapingInProgress}
           />
         ))}
       </div>

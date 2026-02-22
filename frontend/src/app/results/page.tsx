@@ -27,6 +27,7 @@ function ResultsContent() {
 
   const results = data?.results ?? [];
   const priceStats = data?.price_stats ?? null;
+  const scrapingInProgress = data?.scraping_in_progress ?? false;
   const distanceKm = Math.round(radiusMeters / 1000);
 
   return (
@@ -56,6 +57,7 @@ function ResultsContent() {
             isLoading={isLoading}
             error={error}
             onRetry={() => refetch()}
+            scrapingInProgress={scrapingInProgress}
           />
         </div>
       </div>
@@ -78,6 +80,7 @@ function ResultsContent() {
               isLoading={isLoading}
               error={error}
               onRetry={() => refetch()}
+              scrapingInProgress={scrapingInProgress}
             />
           </div>
         </div>
