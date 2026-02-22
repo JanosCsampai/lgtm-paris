@@ -5,7 +5,7 @@ import { User } from "lucide-react";
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b-2 border-[#003888] bg-white">
+    <header className="sticky top-0 z-50 w-full border-b-2 border-[#5C2553] bg-white">
       <div className="flex h-14 items-center justify-between px-5 sm:px-6 lg:px-8">
         <Link href="/">
           <img
