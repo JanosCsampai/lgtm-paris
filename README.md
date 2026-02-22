@@ -1,5 +1,5 @@
 # Plumline — Local Service Price Intelligence
-
+### Devpost Project Link: https://devpost.com/software/lgtm-kr23o9
 Price transparency for local services. Find out what mechanics, electricians, phone repair shops, and other providers actually charge in your area — powered by multi-layered web scraping, LLM extraction, vector search, and browser automation.
 
 ## Tech Stack
