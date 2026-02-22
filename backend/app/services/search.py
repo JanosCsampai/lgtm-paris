@@ -13,7 +13,7 @@ from app.models.search import (
     ProviderWithPrices,
     SearchResponse,
 )
-from app.services.discovery import condense_query, discover_external, name_to_slug
+from app.services.discovery import discover_external, name_to_slug
 from app.services import embeddings as embeddings_svc
 
 logger = logging.getLogger(__name__)
@@ -318,33 +318,43 @@ async def find_providers_by_ids(
     return results
 
 
-_VALIDATE_PROMPT = (
-    "You validate whether existing service types are relevant to a user's search. "
-    "Be strict about specific identifiers: different brands, models, or product lines "
-    "should NOT match each other (e.g. iPhone ≠ Galaxy, BMW ≠ Toyota). "
-    "Generic service types (e.g. 'Screen Repair' without a device) DO match specific queries in that category. "
-    "Reply with ONLY a JSON array of the relevant slug strings, or [] if none match."
+_INTENT_PROMPT = (
+    "You are a service-type matching assistant. Given a user's search query and a list of "
+    "existing service types, you must:\n"
+    "1. Extract a short, canonical service-type name (2-6 words) from the query. "
+    "Remove filler words. Keep specific product/model identifiers.\n"
+    "2. Determine which existing service types (if any) are relevant to this query.\n\n"
+    "Matching rules:\n"
+    "- Different brands/models/product lines must NOT match "
+    "(e.g. iPhone ≠ Galaxy, BMW ≠ Toyota).\n"
+    "- Generic types without a specific model (e.g. 'Screen Repair') DO match "
+    "any specific query in that category.\n"
+    "- Types for the same brand family DO match "
+    "(e.g. 'Galaxy Note 10' is relevant for a 'Galaxy' query).\n\n"
+    'Reply with ONLY a JSON object: {"name": "<condensed name>", "relevant_slugs": ["slug1", ...]}\n'
+    "If no existing types are relevant, return an empty array for relevant_slugs."
 )
 
 
-async def _validate_matches(
+async def _resolve_intent(
     query: str,
-    condensed_name: str,
     candidates: list[MatchedServiceType],
-) -> list[MatchedServiceType]:
-    """Use the LLM to keep only service types that truly match the query."""
-    if not candidates:
-        return []
+) -> tuple[str, list[MatchedServiceType]]:
+    """Single LLM call that condenses the query AND validates candidate matches.
+
+    Returns (condensed_name, validated_candidates).
+    """
     if not settings.openai_api_key:
-        return candidates
+        return query.strip().title(), candidates
 
     slug_map = {m.slug: m for m in candidates}
-    listing = "\n".join(f"- {m.slug}: {m.name}" for m in candidates)
-    user_msg = (
-        f'User query: "{query}"\n'
-        f'Ideal service type: "{condensed_name}"\n\n'
-        f"Candidate service types:\n{listing}"
-    )
+    if candidates:
+        listing = "\n".join(f"- {m.slug}: {m.name}" for m in candidates)
+        candidates_block = f"\nExisting service types:\n{listing}"
+    else:
+        candidates_block = "\nNo existing service types to match against."
+
+    user_msg = f'User query: "{query}"{candidates_block}'
 
     try:
         client = AsyncOpenAI(api_key=settings.openai_api_key)
@@ -353,22 +363,24 @@ async def _validate_matches(
             temperature=0,
             max_tokens=200,
             messages=[
-                {"role": "system", "content": _VALIDATE_PROMPT},
+                {"role": "system", "content": _INTENT_PROMPT},
                 {"role": "user", "content": user_msg},
             ],
         )
         content = resp.choices[0].message.content.strip()
-        valid_slugs = set(json.loads(content))
-        result = [slug_map[s] for s in valid_slugs if s in slug_map]
+        parsed = json.loads(content)
+        condensed_name = parsed["name"]
+        valid_slugs = set(parsed.get("relevant_slugs", []))
+        validated = [slug_map[s] for s in valid_slugs if s in slug_map]
         logger.info(
-            "Validated matches for %r: %d/%d kept %s",
-            query, len(result), len(candidates),
-            [m.slug for m in result],
+            "Resolved intent for %r: name=%r, kept %d/%d slugs %s",
+            query, condensed_name, len(validated), len(candidates),
+            [m.slug for m in validated],
         )
-        return result
+        return condensed_name, validated
     except Exception:
-        logger.warning("Match validation failed, keeping all candidates", exc_info=True)
-        return candidates
+        logger.warning("Intent resolution failed, using raw query", exc_info=True)
+        return query.strip().title(), candidates
 
 
 async def _resolve_category_labels(providers: list[ProviderWithPrices]) -> None:
@@ -394,25 +406,24 @@ async def search(
 ) -> SearchResponse:
     """Run text + vector search, find nearby providers, trigger discovery if empty."""
 
-    condensed_name, text_matches, vector_matches = await asyncio.gather(
-        condense_query(query),
+    text_matches, vector_matches = await asyncio.gather(
         match_service_types_text(query),
         match_service_types_vector(query),
     )
+    merged = _merge_service_types(text_matches, vector_matches)
+
+    condensed_name, validated = await _resolve_intent(query, merged)
     condensed_slug = name_to_slug(condensed_name)
 
-    merged = _merge_service_types(text_matches, vector_matches)
-    matched_slugs = {m.slug for m in merged}
-
-    if condensed_slug in matched_slugs:
-        slugs = [m.slug for m in merged]
-    else:
+    # Check if the condensed slug exists in DB but wasn't in text/vector results
+    validated_slugs = {m.slug for m in validated}
+    if condensed_slug not in validated_slugs:
         db = get_db()
         existing = await db.service_types.find_one(
             {"slug": condensed_slug}, {"slug": 1, "name": 1}
         )
         if existing:
-            merged.insert(
+            validated.insert(
                 0,
                 MatchedServiceType(
                     slug=existing["slug"],
@@ -421,11 +432,8 @@ async def search(
                     score=1.0,
                 ),
             )
-            slugs = [m.slug for m in merged]
-        else:
-            validated = await _validate_matches(query, condensed_name, merged)
-            merged = validated
-            slugs = [m.slug for m in merged]
+
+    slugs = [m.slug for m in validated]
 
     providers: list[ProviderWithPrices] = []
     if slugs:
@@ -446,7 +454,7 @@ async def search(
 
     return SearchResponse(
         query=query,
-        matched_service_types=merged,
+        matched_service_types=validated,
         results=providers,
         discovery_triggered=discovery_triggered,
     )
