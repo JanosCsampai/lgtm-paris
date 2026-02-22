@@ -1,5 +1,5 @@
 import asyncio
-import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from app.services.agent_runner import run_booking_agent
 
 router = APIRouter(prefix="/api")
+
+_executor = ThreadPoolExecutor(max_workers=2)
 
 
 class BookingRequest(BaseModel):
@@ -37,14 +39,13 @@ async def book(req: BookingRequest):
         "expiry": "12/28",
         "cvc": "123",
     }
-    thread = threading.Thread(
-        target=_run_agent_in_thread,
-        args=(
-            {"firstname": req.firstname, "lastname": req.lastname, "email": req.email},
-            card_data,
-            {"device": req.device, "date": req.date, "time": req.time},
-        ),
-        daemon=True,
+    loop = asyncio.get_event_loop()
+    # run_in_executor awaits the thread — HTTP request blocks until agent finishes
+    await loop.run_in_executor(
+        _executor,
+        _run_agent_in_thread,
+        {"firstname": req.firstname, "lastname": req.lastname, "email": req.email},
+        card_data,
+        {"device": req.device, "date": req.date, "time": req.time},
     )
-    thread.start()
     return {"status": "success"}
