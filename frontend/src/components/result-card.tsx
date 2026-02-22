@@ -1,14 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Star, Mail, Loader2, CheckCircle2, Clock } from "lucide-react";
-import type { ProviderWithPrices } from "@/lib/types";
+import {
+  MapPin,
+  Star,
+  Mail,
+  Loader2,
+  CheckCircle2,
+  Clock,
+  TrendingDown,
+  TrendingUp,
+  AlertTriangle,
+  Trophy,
+} from "lucide-react";
+import type { PriceStats, ProviderWithPrices } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_SWATCHES } from "@/lib/constants";
 import { BookingModal } from "@/components/booking-modal";
 import { sendInquiry } from "@/lib/api";
 
 interface ResultCardProps {
   provider: ProviderWithPrices;
+  priceStats?: PriceStats | null;
 }
 
 function formatDistance(meters: number): string {
@@ -32,7 +44,104 @@ function formatPrice(price: number, currency: string): string {
   return `${symbols[currency] ?? currency + " "}${Math.round(price)}`;
 }
 
-export function ResultCard({ provider }: ResultCardProps) {
+type PriceCallout =
+  | { kind: "best"; label: string }
+  | { kind: "below_avg"; label: string; pctBelow: number }
+  | { kind: "above_avg"; label: string; ratio: number }
+  | { kind: "near_avg"; label: string }
+  | null;
+
+function getPriceCallout(
+  price: number,
+  stats: PriceStats
+): PriceCallout {
+  if (stats.sample_size < 2) return null;
+
+  const avg = stats.avg_price;
+  const ratio = price / avg;
+
+  if (price <= stats.min_price) {
+    return { kind: "best", label: "Best price locally" };
+  }
+  if (ratio <= 0.7) {
+    const pctBelow = Math.round((1 - ratio) * 100);
+    return {
+      kind: "below_avg",
+      label: `${pctBelow}% below local avg`,
+      pctBelow,
+    };
+  }
+  if (ratio >= 2) {
+    const r = Math.round(ratio * 10) / 10;
+    return {
+      kind: "above_avg",
+      label: `${r}x the local average`,
+      ratio: r,
+    };
+  }
+  if (ratio > 1.3) {
+    const pctAbove = Math.round((ratio - 1) * 100);
+    return {
+      kind: "above_avg",
+      label: `${pctAbove}% above local avg`,
+      ratio,
+    };
+  }
+  if (ratio >= 0.7 && ratio <= 1.3) {
+    return { kind: "near_avg", label: "Near local average" };
+  }
+
+  return null;
+}
+
+function PriceCalloutBadge({ callout, avgFormatted }: { callout: NonNullable<PriceCallout>; avgFormatted: string }) {
+  switch (callout.kind) {
+    case "best":
+      return (
+        <div className="mt-1 flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-1">
+          <Trophy className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+            {callout.label}
+          </span>
+        </div>
+      );
+    case "below_avg":
+      return (
+        <div className="mt-1 flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-1">
+          <TrendingDown className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+            {callout.label}
+          </span>
+        </div>
+      );
+    case "above_avg":
+      return (
+        <div className="mt-1 flex items-center gap-1 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-1">
+          {callout.ratio >= 2 ? (
+            <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+          ) : (
+            <TrendingUp className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+          )}
+          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+            {callout.label}
+          </span>
+          <span className="text-[10px] text-amber-500 dark:text-amber-500">
+            (avg {avgFormatted})
+          </span>
+        </div>
+      );
+    case "near_avg":
+      return (
+        <div className="mt-1 flex items-center gap-1 rounded-md bg-muted/50 border border-border/60 px-2 py-1">
+          <span className="text-[11px] text-muted-foreground">
+            ~ {callout.label}
+          </span>
+        </div>
+      );
+  }
+}
+
+export function ResultCard({ provider, priceStats }: ResultCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [inquiryState, setInquiryState] = useState<
     "idle" | "sending" | "sent" | "error"
@@ -89,11 +198,23 @@ export function ResultCard({ provider }: ResultCardProps) {
             </div>
           </div>
 
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right flex flex-col items-end">
             {hasPrice ? (
-              <span className="text-base font-bold text-foreground">
-                {formatPrice(lowest.price, lowest.currency)}
-              </span>
+              <>
+                <span className="text-base font-bold text-foreground">
+                  {formatPrice(lowest.price, lowest.currency)}
+                </span>
+                {priceStats && priceStats.sample_size >= 2 && (() => {
+                  const callout = getPriceCallout(lowest.price, priceStats);
+                  if (!callout) return null;
+                  return (
+                    <PriceCalloutBadge
+                      callout={callout}
+                      avgFormatted={formatPrice(priceStats.avg_price, priceStats.currency)}
+                    />
+                  );
+                })()}
+              </>
             ) : alreadyReplied ? (
               <span className="flex items-center gap-1 text-[13px] text-emerald-600">
                 <CheckCircle2 className="h-3.5 w-3.5" />

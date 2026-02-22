@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+import math
+import statistics
 
 from bson import ObjectId
 from langchain_mongodb import MongoDBAtlasVectorSearch
@@ -11,6 +13,7 @@ from app.db import get_db, get_sync_db
 from app.models.search import (
     MatchedServiceType,
     ObservationSummary,
+    PriceStats,
     ProviderWithPrices,
     SearchResponse,
 )
@@ -459,6 +462,95 @@ async def _resolve_inquiry_statuses(providers: list[ProviderWithPrices]) -> None
         p.inquiry_status = status_map.get(p.id, "none")
 
 
+MIN_SAMPLE_FOR_OUTLIER_FILTER = 5
+MAD_Z_THRESHOLD = 3.5
+
+
+def _mad_outlier_prices(values: list[float]) -> set[float]:
+    """Identify outlier prices using Modified Z-score (MAD) in log-space.
+
+    Prices are multiplicative, so we work in log-space where the
+    distribution is symmetric.  MAD is robust because both the median
+    and the median-of-deviations are immune to extreme values — unlike
+    IQR where a single outlier can widen the quartiles.
+
+    Returns the set of prices that are outliers (modified |Z| > threshold).
+    """
+    log_v = [math.log(v) for v in values]
+    med = statistics.median(log_v)
+    abs_devs = [abs(lv - med) for lv in log_v]
+    mad = statistics.median(abs_devs)
+
+    if mad == 0:
+        return set()
+
+    outliers: set[float] = set()
+    for v, lv in zip(values, log_v):
+        z = 0.6745 * abs(lv - med) / mad
+        if z > MAD_Z_THRESHOLD:
+            outliers.add(v)
+    return outliers
+
+
+def _filter_price_outliers(providers: list[ProviderWithPrices]) -> int:
+    """Remove observations whose prices are extreme statistical outliers.
+
+    Only runs when there are enough providers with prices for the MAD
+    method to be meaningful.  Mutates providers in-place.
+    Returns the number of observations removed.
+    """
+    lowest_by_provider: dict[str, float] = {}
+    for p in providers:
+        with_price = [o for o in p.observations if o.price > 0]
+        if with_price:
+            lowest_by_provider[p.id] = min(o.price for o in with_price)
+
+    if len(lowest_by_provider) < MIN_SAMPLE_FOR_OUTLIER_FILTER:
+        return 0
+
+    bad_prices = _mad_outlier_prices(list(lowest_by_provider.values()))
+    if not bad_prices:
+        return 0
+
+    removed = 0
+    for p in providers:
+        before = len(p.observations)
+        p.observations = [o for o in p.observations if o.price <= 0 or o.price not in bad_prices]
+        removed += before - len(p.observations)
+
+    if removed:
+        logger.info(
+            "Outlier filter (MAD z>%.1f) removed %d observation(s) with prices %s",
+            MAD_Z_THRESHOLD, removed, sorted(bad_prices),
+        )
+    return removed
+
+
+def _compute_price_stats(providers: list[ProviderWithPrices]) -> PriceStats | None:
+    """Compute aggregate price statistics from the lowest price per provider."""
+    prices: list[tuple[float, str]] = []
+    for p in providers:
+        with_price = [o for o in p.observations if o.price > 0]
+        if with_price:
+            lowest = min(with_price, key=lambda o: o.price)
+            prices.append((lowest.price, lowest.currency))
+
+    if not prices:
+        return None
+
+    values = [p for p, _ in prices]
+    currency = max(set(c for _, c in prices), key=lambda c: sum(1 for _, cc in prices if cc == c))
+
+    return PriceStats(
+        avg_price=round(statistics.mean(values), 2),
+        min_price=round(min(values), 2),
+        max_price=round(max(values), 2),
+        median_price=round(statistics.median(values), 2),
+        currency=currency,
+        sample_size=len(values),
+    )
+
+
 async def _resolve_category_labels(providers: list[ProviderWithPrices]) -> None:
     """Look up service_types by slug and set category_label on each provider."""
     slugs = list({p.category for p in providers})
@@ -535,12 +627,16 @@ async def search(
             _enrich_with_scraped_prices(providers, query, primary_slug),
             _resolve_inquiry_statuses(providers),
         )
+        _filter_price_outliers(providers)
+
+    price_stats = _compute_price_stats(providers) if providers else None
 
     return SearchResponse(
         query=query,
         matched_service_types=validated,
         results=providers,
         discovery_triggered=discovery_triggered,
+        price_stats=price_stats,
     )
 
 
