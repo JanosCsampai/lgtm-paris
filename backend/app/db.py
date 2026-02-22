@@ -47,3 +47,7 @@ async def ensure_indexes():
     await db.bookings.create_index("stripe_payment_intent_id", unique=True)
     await db.bookings.create_index("stripe_card_id", unique=True)
     await db.bookings.create_index("customer_id")
+
+    await db.inquiries.create_index([("provider_id", 1), ("service_type", 1)])
+    await db.inquiries.create_index("status")
+    await db.inquiries.create_index("message_id", unique=True)

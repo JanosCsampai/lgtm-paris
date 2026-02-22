@@ -16,6 +16,7 @@ from app.models.search import (
 )
 from app.services.discovery import discover_external, name_to_slug
 from app.services import embeddings as embeddings_svc
+from app.services.email_service import check_for_replies
 from app.services.scraper import scrape_and_store_prices
 
 logger = logging.getLogger(__name__)
@@ -187,6 +188,7 @@ async def find_providers_with_prices(
                 rating=p.get("rating"),
                 review_count=p.get("review_count"),
                 description=p.get("description"),
+                website=p.get("website"),
                 observations=[ObservationSummary(**o) for o in doc["observations"]],
             )
         )
@@ -233,6 +235,7 @@ async def find_providers_by_category(
                 rating=doc.get("rating"),
                 review_count=doc.get("review_count"),
                 description=doc.get("description"),
+                website=doc.get("website"),
             )
         )
     return results
@@ -315,6 +318,7 @@ async def find_providers_by_ids(
                 rating=doc.get("rating"),
                 review_count=doc.get("review_count"),
                 description=doc.get("description"),
+                website=doc.get("website"),
             )
         )
     return results
@@ -434,6 +438,27 @@ async def _enrich_with_scraped_prices(
             )
 
 
+async def _resolve_inquiry_statuses(providers: list[ProviderWithPrices]) -> None:
+    """Look up pending/replied inquiries and set inquiry_status on each provider."""
+    provider_ids = [ObjectId(p.id) for p in providers]
+    if not provider_ids:
+        return
+
+    db = get_db()
+    status_map: dict[str, str] = {}
+    async for doc in db.inquiries.find(
+        {"provider_id": {"$in": provider_ids}, "status": {"$in": ["sent", "replied"]}},
+        {"provider_id": 1, "status": 1},
+    ):
+        pid = str(doc["provider_id"])
+        current = status_map.get(pid)
+        if doc["status"] == "replied" or current is None:
+            status_map[pid] = doc["status"]
+
+    for p in providers:
+        p.inquiry_status = status_map.get(p.id, "none")
+
+
 async def _resolve_category_labels(providers: list[ProviderWithPrices]) -> None:
     """Look up service_types by slug and set category_label on each provider."""
     slugs = list({p.category for p in providers})
@@ -457,6 +482,8 @@ async def search(
 ) -> SearchResponse:
     """Run text + vector search, find nearby providers, trigger discovery if empty."""
 
+    asyncio.create_task(_check_replies_background())
+
     text_matches, vector_matches = await asyncio.gather(
         match_service_types_text(query),
         match_service_types_vector(query),
@@ -466,7 +493,6 @@ async def search(
     condensed_name, validated = await _resolve_intent(query, merged)
     condensed_slug = name_to_slug(condensed_name)
 
-    # Check if the condensed slug exists in DB but wasn't in text/vector results
     validated_slugs = {m.slug for m in validated}
     if condensed_slug not in validated_slugs:
         db = get_db()
@@ -488,10 +514,12 @@ async def search(
 
     providers: list[ProviderWithPrices] = []
     if slugs:
-        providers = await find_providers_with_prices(slugs, lat, lng, radius_meters)
-
-    if not providers and slugs:
-        providers = await find_providers_by_category(slugs, lat, lng, radius_meters)
+        priced, unpriced = await asyncio.gather(
+            find_providers_with_prices(slugs, lat, lng, radius_meters),
+            find_providers_by_category(slugs, lat, lng, radius_meters),
+        )
+        seen_ids = {p.id for p in priced}
+        providers = priced + [p for p in unpriced if p.id not in seen_ids]
 
     discovery_triggered = False
     if not providers:
@@ -505,6 +533,7 @@ async def search(
         await asyncio.gather(
             _resolve_category_labels(providers),
             _enrich_with_scraped_prices(providers, query, primary_slug),
+            _resolve_inquiry_statuses(providers),
         )
 
     return SearchResponse(
@@ -513,3 +542,13 @@ async def search(
         results=providers,
         discovery_triggered=discovery_triggered,
     )
+
+
+async def _check_replies_background() -> None:
+    """Fire-and-forget task that checks for email replies."""
+    try:
+        count = await check_for_replies()
+        if count > 0:
+            logger.info("Processed %d email replies during search", count)
+    except Exception:
+        logger.warning("Background reply check failed", exc_info=True)

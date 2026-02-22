@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Star } from "lucide-react";
+import { MapPin, Star, Mail, Loader2, CheckCircle2, Clock } from "lucide-react";
 import type { ProviderWithPrices } from "@/lib/types";
 import { CATEGORY_LABELS, CATEGORY_SWATCHES } from "@/lib/constants";
 import { BookingModal } from "@/components/booking-modal";
+import { sendInquiry } from "@/lib/api";
 
 interface ResultCardProps {
   provider: ProviderWithPrices;
@@ -20,7 +21,9 @@ function getLowestPrice(provider: ProviderWithPrices): {
   currency: string;
 } | null {
   if (provider.observations.length === 0) return null;
-  const sorted = [...provider.observations].sort((a, b) => a.price - b.price);
+  const withPrice = provider.observations.filter((o) => o.price > 0);
+  if (withPrice.length === 0) return null;
+  const sorted = [...withPrice].sort((a, b) => a.price - b.price);
   return { price: sorted[0].price, currency: sorted[0].currency };
 }
 
@@ -31,9 +34,28 @@ function formatPrice(price: number, currency: string): string {
 
 export function ResultCard({ provider }: ResultCardProps) {
   const [showModal, setShowModal] = useState(false);
+  const [inquiryState, setInquiryState] = useState<
+    "idle" | "sending" | "sent" | "error"
+  >(provider.inquiry_status === "sent" ? "sent" : "idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
   const lowest = getLowestPrice(provider);
   const categoryLabel = provider.category_label || provider.category;
   const swatch = CATEGORY_SWATCHES[provider.category] ?? "#6b7280";
+  const hasPrice = !!lowest;
+  const alreadyReplied = provider.inquiry_status === "replied";
+
+  async function handleInquire() {
+    setInquiryState("sending");
+    setErrorMsg("");
+    try {
+      await sendInquiry(provider.id, provider.category);
+      setInquiryState("sent");
+    } catch (err: any) {
+      setInquiryState("error");
+      setErrorMsg(err.message || "Failed to send inquiry");
+    }
+  }
 
   return (
     <div className="group py-5 cursor-pointer transition-colors hover:bg-muted/40 -mx-3 px-3 rounded-sm">
@@ -43,7 +65,6 @@ export function ResultCard({ provider }: ResultCardProps) {
             <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">
               {provider.name}
             </h3>
-            {/* Tube-line indicator badge */}
             <div className="mt-1 flex items-center gap-2">
               <span className="flex items-center gap-1.5">
                 <span
@@ -68,19 +89,33 @@ export function ResultCard({ provider }: ResultCardProps) {
             </div>
           </div>
 
-          {lowest && (
-            <div className="shrink-0 text-right">
+          <div className="shrink-0 text-right">
+            {hasPrice ? (
               <span className="text-base font-bold text-foreground">
                 {formatPrice(lowest.price, lowest.currency)}
               </span>
-            </div>
-          )}
+            ) : alreadyReplied ? (
+              <span className="flex items-center gap-1 text-[13px] text-emerald-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Reply received
+              </span>
+            ) : inquiryState === "sent" || provider.inquiry_status === "sent" ? (
+              <span className="flex items-center gap-1 text-[13px] text-amber-600">
+                <Clock className="h-3.5 w-3.5" />
+                Inquiry sent
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {provider.description && (
           <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
             {provider.description}
           </p>
+        )}
+
+        {errorMsg && (
+          <p className="mt-1 text-[12px] text-red-500">{errorMsg}</p>
         )}
 
         <div className="mt-2.5 flex items-center justify-between">
@@ -93,12 +128,33 @@ export function ResultCard({ provider }: ResultCardProps) {
             <button className="text-[12px] text-muted-foreground/60 hover:text-foreground transition-colors">
               Why recommended?
             </button>
-            <button
-              onClick={() => setShowModal(true)}
-              className="rounded-sm border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
-            >
-              Book now
-            </button>
+
+            {!hasPrice && !alreadyReplied && inquiryState !== "sent" && provider.inquiry_status !== "sent" ? (
+              <button
+                onClick={handleInquire}
+                disabled={inquiryState === "sending"}
+                className="rounded-sm border border-primary/30 bg-primary/5 px-3.5 py-1.5 text-[13px] font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/50 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {inquiryState === "sending" ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-3.5 w-3.5" />
+                    Inquire price
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowModal(true)}
+                className="rounded-sm border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
+              >
+                Book now
+              </button>
+            )}
           </div>
         </div>
       </div>

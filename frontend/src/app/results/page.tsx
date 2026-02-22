@@ -37,6 +37,7 @@ function ResultsContent() {
             count={results.length}
             distanceKm={distanceKm}
             isLoading={isLoading}
+            onRepliesChecked={() => refetch()}
           />
         </div>
         <div className="h-52 w-full">
@@ -65,6 +66,7 @@ function ResultsContent() {
               count={results.length}
               distanceKm={distanceKm}
               isLoading={isLoading}
+              onRepliesChecked={() => refetch()}
             />
           </div>
           <div className="px-6 xl:px-10 pb-8">

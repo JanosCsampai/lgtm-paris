@@ -23,7 +23,9 @@ export interface ProviderWithPrices {
   rating: number | null;
   review_count: number | null;
   description: string | null;
+  website: string | null;
   observations: ObservationSummary[];
+  inquiry_status: "none" | "sent" | "replied" | null;
 }
 
 export interface MatchedServiceType {
