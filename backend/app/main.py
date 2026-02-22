@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
-from app.routers import observations, providers, service_types, stripe_payments, search, book
+from app.routers import observations, providers, service_types, stripe_payments, search, book, chat
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.include_router(observations.router)
 app.include_router(search.router)
 app.include_router(stripe_payments.router)
 app.include_router(book.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

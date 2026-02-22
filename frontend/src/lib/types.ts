@@ -46,3 +46,14 @@ export interface SearchParams {
   lng: number;
   radius_meters: number;
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  status: "ready" | "clarifying";
+  message: string;
+  search_query: string | null;
+}
