@@ -52,14 +52,14 @@ export default function HomePage() {
           </div>
 
           <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight sm:text-5xl">
-            What service are you
+            Compare prices from
             <br />
-            <span className="gradient-text">looking for today?</span>
+            <span className="gradient-text">locals near you</span>
           </h1>
 
           <p className="mx-auto max-w-md text-[15px] leading-relaxed text-muted-foreground">
-            Describe what you need — we&apos;ll find trusted professionals near
-            you in seconds.
+            Search any service and see real prices in your
+            area
           </p>
         </div>
 

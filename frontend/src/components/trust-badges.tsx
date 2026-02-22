@@ -2,7 +2,7 @@ import { CheckCircle2, Star, MapPin } from "lucide-react";
 
 export function TrustBadges() {
   const badges = [
-    { icon: CheckCircle2, label: "Verified providers", color: "text-[#003888]" },
+    { icon: CheckCircle2, label: "Transparent pricing", color: "text-[#003888]" },
     { icon: Star, label: "Real reviews", color: "text-amber-500" },
     { icon: MapPin, label: "Nearby results", color: "text-primary" },
   ];

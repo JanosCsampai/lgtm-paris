@@ -11,9 +11,9 @@ export const DISTANCE_STEP_KM = 0.5;
 
 export const SUGGESTION_CHIPS = [
   "Screen repair under £100",
-  "Battery replacement near me",
-  "iPhone repair today",
-  "Cheapest phone fix nearby",
+  "MOT near me",
+  "Emergency electrician prices",
+  "Cheapest mechanic nearby",
 ];
 
 // Tube line colours used as category swatches
