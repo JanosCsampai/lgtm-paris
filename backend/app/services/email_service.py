@@ -285,17 +285,19 @@ async def _extract_price_from_reply(reply_body: str, service_name: str) -> tuple
         return None, None
 
 
-def _check_imap_replies() -> list[dict]:
+def _check_imap_replies(known_message_ids: set[str]) -> list[dict]:
     """Check IMAP inbox for replies to our inquiries (blocking — run in a thread).
 
-    Returns list of dicts with: in_reply_to, from_addr, subject, body
+    Only fetches full bodies for messages whose In-Reply-To/References match
+    a known inquiry Message-ID, keeping things fast.
     """
-    if not settings.imap_host or not settings.smtp_user:
+    if not settings.imap_host or not settings.smtp_user or not known_message_ids:
         return []
 
     replies = []
     try:
         conn = imaplib.IMAP4_SSL(settings.imap_host, settings.imap_port)
+        conn.socket().settimeout(10)
         conn.login(settings.smtp_user, settings.smtp_password)
         conn.select("INBOX")
 
@@ -304,15 +306,34 @@ def _check_imap_replies() -> list[dict]:
             conn.logout()
             return []
 
-        for num in msg_nums[0].split():
-            _, data = conn.fetch(num, "(RFC822)")
-            raw = data[0][1]
-            msg = email_lib.message_from_bytes(raw)
+        nums = msg_nums[0].split()
 
-            in_reply_to = msg.get("In-Reply-To", "")
-            references = msg.get("References", "")
-            from_addr = msg.get("From", "")
-            subject = msg.get("Subject", "")
+        # Batch-fetch just headers to quickly identify relevant replies
+        num_range = b",".join(nums)
+        _, header_data = conn.fetch(num_range, "(BODY.PEEK[HEADER.FIELDS (In-Reply-To References From Subject)])")
+
+        relevant_nums = []
+        for i in range(0, len(header_data), 2):
+            item = header_data[i]
+            if not isinstance(item, tuple) or len(item) < 2:
+                continue
+            seq_str = item[0].split()[0]
+            hdr = email_lib.message_from_bytes(item[1])
+            in_reply_to = (hdr.get("In-Reply-To") or "").strip()
+            references = (hdr.get("References") or "").strip()
+
+            matched = False
+            for mid in known_message_ids:
+                if mid in in_reply_to or mid in references:
+                    matched = True
+                    break
+            if matched:
+                relevant_nums.append((seq_str, in_reply_to, references, hdr.get("From", ""), hdr.get("Subject", "")))
+
+        for seq, in_reply_to, references, from_addr, subject in relevant_nums:
+            _, body_data = conn.fetch(seq, "(RFC822)")
+            raw = body_data[0][1]
+            msg = email_lib.message_from_bytes(raw)
 
             body = ""
             if msg.is_multipart():
@@ -327,14 +348,16 @@ def _check_imap_replies() -> list[dict]:
                 if payload:
                     body = payload.decode("utf-8", errors="replace")
 
-            if in_reply_to or references:
-                replies.append({
-                    "in_reply_to": in_reply_to.strip(),
-                    "references": references.strip(),
-                    "from_addr": from_addr,
-                    "subject": subject,
-                    "body": body,
-                })
+            # Mark as seen
+            conn.store(seq, "+FLAGS", "\\Seen")
+
+            replies.append({
+                "in_reply_to": in_reply_to,
+                "references": references,
+                "from_addr": from_addr,
+                "subject": subject,
+                "body": body,
+            })
 
         conn.logout()
     except Exception:
@@ -353,19 +376,18 @@ async def check_for_replies() -> int:
 
     db = get_db()
 
-    pending = await db.inquiries.count_documents({"status": "sent"})
-    if pending == 0:
-        return 0
-
-    replies = await asyncio.to_thread(_check_imap_replies)
-    if not replies:
-        return 0
-
     pending_inquiries = []
     async for inq in db.inquiries.find({"status": "sent"}):
         pending_inquiries.append(inq)
 
+    if not pending_inquiries:
+        return 0
+
     msg_id_map = {inq["message_id"]: inq for inq in pending_inquiries}
+
+    replies = await asyncio.to_thread(_check_imap_replies, set(msg_id_map.keys()))
+    if not replies:
+        return 0
 
     processed = 0
     for reply in replies:
