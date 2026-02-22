@@ -55,8 +55,8 @@
   --card-foreground: oklch(0.1 0.01 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.1 0.01 250);
-  /* TfL Red #E32017 */
-  --primary: oklch(0.52 0.228 25);
+  /* Plum Purple #5C2553 */
+  --primary: oklch(0.35 0.10 323);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.96 0.005 250);
   --secondary-foreground: oklch(0.22 0.02 250);
@@ -64,24 +64,24 @@
   --muted-foreground: oklch(0.48 0.01 250);
   --accent: oklch(0.96 0.005 250);
   --accent-foreground: oklch(0.22 0.02 250);
-  --destructive: oklch(0.52 0.228 25);
+  --destructive: oklch(0.577 0.245 27);
   --border: oklch(0.92 0.003 250);
   --input: oklch(0.92 0.003 250);
-  /* TfL Red for ring */
-  --ring: oklch(0.52 0.228 25);
-  --chart-1: oklch(0.52 0.228 25);
+  /* Plum Purple for ring */
+  --ring: oklch(0.35 0.10 323);
+  --chart-1: oklch(0.35 0.10 323);
   --chart-2: oklch(0.27 0.12 260);
   --chart-3: oklch(0.42 0.14 145);
   --chart-4: oklch(0.65 0.17 55);
   --chart-5: oklch(0.55 0.18 340);
   --sidebar: oklch(0.99 0 0);
   --sidebar-foreground: oklch(0.1 0.01 250);
-  --sidebar-primary: oklch(0.52 0.228 25);
+  --sidebar-primary: oklch(0.35 0.10 323);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.2 0.01 250);
   --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.52 0.228 25);
+  --sidebar-ring: oklch(0.35 0.10 323);
 }
 
 @layer base {
@@ -96,9 +96,9 @@
 .gradient-text {
   background: linear-gradient(
     135deg,
-    #E32017 0%,
-    #9B0056 55%,
-    #003888 100%
+    #7C3573 0%,
+    #5C2553 55%,
+    #3d1838 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -120,7 +120,7 @@
   justify-content: center;
   height: 22px;
   padding: 0 7px;
-  background: #003888;
+  background: #5C2553;
   border: 2px solid white;
   border-radius: 3px;
   font-size: 11px;
@@ -134,7 +134,7 @@
 }
 
 .price-marker:hover {
-  background: #E32017;
+  background: #3d1838;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 1000 !important;
 }

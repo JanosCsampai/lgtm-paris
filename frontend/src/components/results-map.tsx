@@ -43,7 +43,7 @@ const userIcon = new L.DivIcon({
 
 const dotIcon = new L.DivIcon({
   className: "",
-  html: `<div style="width:22px;height:22px;border-radius:50%;background:#E32017;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></div>`,
+  html: `<div style="width:22px;height:22px;border-radius:50%;background:#5C2553;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></div>`,
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 });
