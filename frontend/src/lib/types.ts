@@ -23,7 +23,18 @@ export interface ProviderWithPrices {
   rating: number | null;
   review_count: number | null;
   description: string | null;
+  website: string | null;
   observations: ObservationSummary[];
+  inquiry_status: "none" | "sent" | "replied" | null;
+}
+
+export interface PriceStats {
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  median_price: number;
+  currency: string;
+  sample_size: number;
 }
 
 export interface MatchedServiceType {
@@ -38,6 +49,7 @@ export interface SearchResponse {
   matched_service_types: MatchedServiceType[];
   results: ProviderWithPrices[];
   discovery_triggered: boolean;
+  price_stats: PriceStats | null;
 }
 
 export interface SearchParams {

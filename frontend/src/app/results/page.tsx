@@ -26,6 +26,7 @@ function ResultsContent() {
   const { data, isLoading, error, refetch } = useSearch(params);
 
   const results = data?.results ?? [];
+  const priceStats = data?.price_stats ?? null;
   const distanceKm = Math.round(radiusMeters / 1000);
 
   return (
@@ -37,6 +38,7 @@ function ResultsContent() {
             count={results.length}
             distanceKm={distanceKm}
             isLoading={isLoading}
+            onRepliesChecked={() => refetch()}
           />
         </div>
         <div className="h-52 w-full">
@@ -50,6 +52,7 @@ function ResultsContent() {
         <div className="px-5 py-4">
           <ResultsList
             results={results}
+            priceStats={priceStats}
             isLoading={isLoading}
             error={error}
             onRetry={() => refetch()}
@@ -65,11 +68,13 @@ function ResultsContent() {
               count={results.length}
               distanceKm={distanceKm}
               isLoading={isLoading}
+              onRepliesChecked={() => refetch()}
             />
           </div>
           <div className="px-6 xl:px-10 pb-8">
             <ResultsList
               results={results}
+              priceStats={priceStats}
               isLoading={isLoading}
               error={error}
               onRetry={() => refetch()}

@@ -33,7 +33,18 @@ class ProviderWithPrices(BaseModel):
     rating: float | None = None
     review_count: int | None = None
     description: str | None = None
+    website: str | None = None
     observations: list[ObservationSummary] = []
+    inquiry_status: Literal["none", "sent", "replied"] | None = "none"
+
+
+class PriceStats(BaseModel):
+    avg_price: float
+    min_price: float
+    max_price: float
+    median_price: float
+    currency: str
+    sample_size: int
 
 
 class SearchResponse(BaseModel):
@@ -41,3 +52,4 @@ class SearchResponse(BaseModel):
     matched_service_types: list[MatchedServiceType]
     results: list[ProviderWithPrices]
     discovery_triggered: bool = False
+    price_stats: PriceStats | None = None
