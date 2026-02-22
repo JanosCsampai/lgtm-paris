@@ -133,6 +133,7 @@ async def discover_external(
     lat: float,
     lng: float,
     radius_meters: float,
+    condensed_name: str | None = None,
 ) -> list[ObjectId]:
     """Find providers via SerpAPI Google Maps and upsert them into MongoDB.
 
@@ -146,7 +147,7 @@ async def discover_external(
         slug = service_type_slugs[0]
         name = slug.replace("_", " ").title()
     else:
-        name = await condense_query(query)
+        name = condensed_name or await condense_query(query)
         slug = name_to_slug(name)
     await _ensure_service_type(name, slug)
 

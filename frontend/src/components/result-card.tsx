@@ -21,6 +21,7 @@ import { sendInquiry } from "@/lib/api";
 interface ResultCardProps {
   provider: ProviderWithPrices;
   priceStats?: PriceStats | null;
+  scrapingInProgress?: boolean;
 }
 
 function formatDistance(meters: number): string {
@@ -141,7 +142,7 @@ function PriceCalloutBadge({ callout, avgFormatted }: { callout: NonNullable<Pri
   }
 }
 
-export function ResultCard({ provider, priceStats }: ResultCardProps) {
+export function ResultCard({ provider, priceStats, scrapingInProgress }: ResultCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [inquiryState, setInquiryState] = useState<
     "idle" | "sending" | "sent" | "error"
@@ -215,6 +216,11 @@ export function ResultCard({ provider, priceStats }: ResultCardProps) {
                   );
                 })()}
               </>
+            ) : scrapingInProgress ? (
+              <span className="flex items-center gap-1 text-[13px] text-muted-foreground animate-pulse">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Checking&hellip;
+              </span>
             ) : alreadyReplied ? (
               <span className="flex items-center gap-1 text-[13px] text-emerald-600">
                 <CheckCircle2 className="h-3.5 w-3.5" />

@@ -53,3 +53,4 @@ class SearchResponse(BaseModel):
     results: list[ProviderWithPrices]
     discovery_triggered: bool = False
     price_stats: PriceStats | None = None
+    scraping_in_progress: bool = False

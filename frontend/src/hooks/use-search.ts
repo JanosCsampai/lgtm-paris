@@ -11,5 +11,7 @@ export function useSearch(params: SearchParams | null) {
     enabled: !!params && params.q.length > 0,
     staleTime: 1000 * 60 * 2,
     retry: 1,
+    refetchInterval: (query) =>
+      query.state.data?.scraping_in_progress ? 3000 : false,
   });
 }
