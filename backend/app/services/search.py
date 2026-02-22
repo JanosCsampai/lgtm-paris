@@ -65,7 +65,7 @@ async def match_service_types_text(query: str) -> list[MatchedServiceType]:
     ]
     results: list[MatchedServiceType] = []
     try:
-        async for doc in db.service_types.aggregate(pipeline):
+        async for doc in db.service_types.aggregate(pipeline, maxTimeMS=4000):
             results.append(
                 MatchedServiceType(
                     slug=doc["slug"],
@@ -90,11 +90,12 @@ async def match_service_types_vector(query: str) -> list[MatchedServiceType]:
         return []
 
     try:
-        docs_and_scores = await asyncio.to_thread(
-            vector_store.similarity_search_with_score, query, k=10
+        docs_and_scores = await asyncio.wait_for(
+            asyncio.to_thread(vector_store.similarity_search_with_score, query, k=10),
+            timeout=5.0,
         )
-    except Exception:
-        logger.warning("Vector search failed — falling back to text-only", exc_info=True)
+    except (asyncio.TimeoutError, Exception):
+        logger.warning("Vector search failed or timed out — falling back to text-only", exc_info=True)
         return []
 
     results: list[MatchedServiceType] = []
@@ -173,7 +174,7 @@ async def find_providers_with_prices(
     ]
 
     results: list[ProviderWithPrices] = []
-    async for doc in db.observations.aggregate(pipeline):
+    async for doc in db.observations.aggregate(pipeline, maxTimeMS=4000):
         p = doc["provider"]
         results.append(
             ProviderWithPrices(
@@ -220,7 +221,7 @@ async def find_providers_by_category(
     ]
 
     results: list[ProviderWithPrices] = []
-    async for doc in db.providers.aggregate(pipeline):
+    async for doc in db.providers.aggregate(pipeline, maxTimeMS=4000):
         results.append(
             ProviderWithPrices(
                 id=str(doc["_id"]),
@@ -302,7 +303,7 @@ async def find_providers_by_ids(
     ]
 
     results: list[ProviderWithPrices] = []
-    async for doc in db.providers.aggregate(pipeline):
+    async for doc in db.providers.aggregate(pipeline, maxTimeMS=4000):
         results.append(
             ProviderWithPrices(
                 id=str(doc["_id"]),
@@ -364,6 +365,7 @@ async def _resolve_intent(
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=200,
+            timeout=10.0,
             messages=[
                 {"role": "system", "content": _INTENT_PROMPT},
                 {"role": "user", "content": user_msg},
@@ -442,7 +444,7 @@ async def _resolve_category_labels(providers: list[ProviderWithPrices]) -> None:
 
     db = get_db()
     slug_to_name: dict[str, str] = {}
-    async for doc in db.service_types.find({"slug": {"$in": slugs}}, {"slug": 1, "name": 1}):
+    async for doc in db.service_types.find({"slug": {"$in": slugs}}, {"slug": 1, "name": 1}, max_time_ms=4000):
         slug_to_name[doc["slug"]] = doc["name"]
 
     for p in providers:
@@ -495,17 +497,29 @@ async def search(
 
     discovery_triggered = False
     if not providers:
-        discovered_ids = await discover_external(query, slugs, lat, lng, radius_meters)
+        try:
+            discovered_ids = await asyncio.wait_for(
+                discover_external(query, slugs, lat, lng, radius_meters),
+                timeout=8.0,
+            )
+        except asyncio.TimeoutError:
+            discovered_ids = []
         if discovered_ids:
             discovery_triggered = True
             providers = await find_providers_by_ids(discovered_ids, lat, lng, radius_meters)
 
     if providers:
         primary_slug = slugs[0] if slugs else condensed_slug
-        await asyncio.gather(
-            _resolve_category_labels(providers),
-            _enrich_with_scraped_prices(providers, query, primary_slug),
-        )
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(
+                    _resolve_category_labels(providers),
+                    _enrich_with_scraped_prices(providers, query, primary_slug),
+                ),
+                timeout=6.0,
+            )
+        except asyncio.TimeoutError:
+            pass  # return providers without enriched prices
 
     return SearchResponse(
         query=query,

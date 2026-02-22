@@ -11,11 +11,15 @@ export async function searchProviders(
   url.searchParams.set("lng", String(params.lng));
   url.searchParams.set("radius_meters", String(params.radius_meters));
 
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`Search failed: ${res.status} ${res.statusText}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    if (!res.ok) throw new Error(`Search failed: ${res.status} ${res.statusText}`);
+    return res.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return res.json();
 }
 
 export async function sendChatMessage(

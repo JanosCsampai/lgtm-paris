@@ -27,8 +27,8 @@ async def create_setup_intent(stripe_customer_id: str) -> stripe.SetupIntent:
 async def attach_payment_method(
     stripe_customer_id: str,
     payment_method_id: str,
-) -> None:
-    await asyncio.to_thread(
+) -> str:
+    pm = await asyncio.to_thread(
         stripe.PaymentMethod.attach,
         payment_method_id,
         customer=stripe_customer_id,
@@ -36,8 +36,9 @@ async def attach_payment_method(
     await asyncio.to_thread(
         stripe.Customer.modify,
         stripe_customer_id,
-        invoice_settings={"default_payment_method": payment_method_id},
+        invoice_settings={"default_payment_method": pm.id},
     )
+    return pm.id
 
 
 async def charge_customer(
@@ -46,18 +47,20 @@ async def charge_customer(
     currency: str,
     description: str,
     metadata: dict,
+    payment_method_id: str | None = None,
 ) -> stripe.PaymentIntent:
-    return await asyncio.to_thread(
-        stripe.PaymentIntent.create,
+    kwargs: dict = dict(
         amount=amount_pence,
         currency=currency,
         customer=stripe_customer_id,
-        payment_method_types=["card"],
         confirm=True,
         off_session=True,
         description=description,
         metadata=metadata,
     )
+    if payment_method_id:
+        kwargs["payment_method"] = payment_method_id
+    return await asyncio.to_thread(stripe.PaymentIntent.create, **kwargs)
 
 
 async def topup_platform_balance(amount_pence: int, currency: str) -> stripe.Topup:
@@ -75,6 +78,8 @@ async def create_cardholder(
     agent_name: str,
     email: str,
     billing_address: dict,
+    first_name: str = "Demo",
+    last_name: str = "Agent",
 ) -> stripe.issuing.Cardholder:
     return await asyncio.to_thread(
         stripe.issuing.Cardholder.create,
@@ -82,7 +87,13 @@ async def create_cardholder(
         email=email,
         type="individual",
         billing={"address": billing_address},
+        phone_number="+33600000000",
         status="active",
+        individual={
+            "first_name": first_name,
+            "last_name": last_name,
+            "dob": {"day": 1, "month": 1, "year": 1990},
+        },
     )
 
 

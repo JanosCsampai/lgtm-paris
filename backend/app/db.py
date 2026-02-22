@@ -19,8 +19,19 @@ def get_sync_db():
 
 async def connect():
     global client, sync_client
-    client = AsyncIOMotorClient(settings.mongo_url, tlsCAFile=certifi.where())
-    sync_client = MongoClient(settings.mongo_url)
+    client = AsyncIOMotorClient(
+        settings.mongo_url,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=3000,
+        connectTimeoutMS=3000,
+        socketTimeoutMS=5000,
+    )
+    sync_client = MongoClient(
+        settings.mongo_url,
+        serverSelectionTimeoutMS=3000,
+        connectTimeoutMS=3000,
+        socketTimeoutMS=5000,
+    )
 
 
 async def close():
