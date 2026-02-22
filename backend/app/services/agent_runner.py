@@ -6,7 +6,7 @@ async def run_booking_agent(customer_data: dict, card_data: dict, appointment_da
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False, slow_mo=100)
         page = await browser.new_page()
-        await page.goto("http://localhost:3000")
+        await page.goto("http://localhost:3000/test-website")
 
         # Personal details (type() simulates real keypresses, character by character)
         await page.type("#firstname", customer_data["firstname"], delay=80)
