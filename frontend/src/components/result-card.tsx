@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MapPin, Star } from "lucide-react";
 import type { ProviderWithPrices } from "@/lib/types";
-import { CATEGORY_LABELS, CATEGORY_SWATCHES } from "@/lib/constants";
+import { CATEGORY_SWATCHES } from "@/lib/constants";
 import { BookingModal } from "@/components/booking-modal";
 
 interface ResultCardProps {

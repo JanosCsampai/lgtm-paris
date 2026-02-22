@@ -45,6 +45,18 @@ export function BookingModal({ provider, onClose }: BookingModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [stepIndex, setStepIndex] = useState(0);
 
+  // Pre-fill from saved profile
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("plumline_profile");
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (p.firstname) setFirstname(p.firstname);
+      if (p.lastname) setLastname(p.lastname);
+      if (p.email) setEmail(p.email);
+    } catch {}
+  }, []);
+
   // Cycle through agent steps while loading
   useEffect(() => {
     if (status !== "loading") return;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, User } from "lucide-react";
+import { User } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -16,13 +16,6 @@ export function Navbar() {
         </Link>
 
         <nav className="flex items-center gap-1">
-          <Link
-            href="/bookings"
-            className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <CalendarDays className="h-4 w-4" />
-            <span className="hidden sm:inline">Bookings</span>
-          </Link>
           <Link
             href="/profile"
             className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"

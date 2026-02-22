@@ -7,6 +7,10 @@ async def run_booking_agent(customer_data: dict, card_data: dict, appointment_da
         browser = await p.chromium.launch(headless=False, slow_mo=100)
         page = await browser.new_page()
         await page.goto("http://localhost:3000/test-website")
+        # Wait for the form to fully hydrate (Next.js dev HMR can trigger a reload
+        # a moment after the initial load — wait for #firstname to be stable first)
+        await page.wait_for_selector("#firstname", state="visible", timeout=15000)
+        await asyncio.sleep(1)
 
         # Personal details (type() simulates real keypresses, character by character)
         await page.type("#firstname", customer_data["firstname"], delay=80)
