@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 
+from bson import ObjectId
 from langchain_mongodb import MongoDBAtlasVectorSearch
 from openai import AsyncOpenAI
 
@@ -15,6 +16,7 @@ from app.models.search import (
 )
 from app.services.discovery import discover_external, name_to_slug
 from app.services import embeddings as embeddings_svc
+from app.services.scraper import scrape_and_store_prices
 
 logger = logging.getLogger(__name__)
 
@@ -383,6 +385,55 @@ async def _resolve_intent(
         return query.strip().title(), candidates
 
 
+async def _fetch_provider_docs(provider_ids: list[str]) -> list[dict]:
+    """Fetch raw provider documents by ID, including the website field."""
+    if not provider_ids:
+        return []
+    db = get_db()
+    oids = [ObjectId(pid) for pid in provider_ids]
+    docs = []
+    async for doc in db.providers.find({"_id": {"$in": oids}}):
+        docs.append(doc)
+    return docs
+
+
+def _providers_needing_scrape(providers: list[ProviderWithPrices]) -> list[str]:
+    """Return IDs of providers that have no observations (i.e. no prices yet)."""
+    return [p.id for p in providers if not p.observations]
+
+
+async def _enrich_with_scraped_prices(
+    providers: list[ProviderWithPrices],
+    query: str,
+    service_type_slug: str,
+) -> None:
+    """Scrape prices for providers missing observations and attach them."""
+    ids_to_scrape = _providers_needing_scrape(providers)
+    if not ids_to_scrape:
+        return
+
+    provider_docs = await _fetch_provider_docs(ids_to_scrape)
+    if not provider_docs:
+        return
+
+    observations = await scrape_and_store_prices(provider_docs, query, service_type_slug)
+    if not observations:
+        return
+
+    for p in providers:
+        obs = observations.get(p.id)
+        if obs:
+            p.observations.append(
+                ObservationSummary(
+                    service_type=obs["service_type"],
+                    price=obs["price"],
+                    currency=obs["currency"],
+                    source_type=obs["source_type"],
+                    observed_at=obs["observed_at"],
+                )
+            )
+
+
 async def _resolve_category_labels(providers: list[ProviderWithPrices]) -> None:
     """Look up service_types by slug and set category_label on each provider."""
     slugs = list({p.category for p in providers})
@@ -450,7 +501,11 @@ async def search(
             providers = await find_providers_by_ids(discovered_ids, lat, lng, radius_meters)
 
     if providers:
-        await _resolve_category_labels(providers)
+        primary_slug = slugs[0] if slugs else condensed_slug
+        await asyncio.gather(
+            _resolve_category_labels(providers),
+            _enrich_with_scraped_prices(providers, query, primary_slug),
+        )
 
     return SearchResponse(
         query=query,

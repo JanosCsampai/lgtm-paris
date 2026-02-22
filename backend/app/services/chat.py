@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from openai import AsyncOpenAI
 
@@ -129,13 +130,19 @@ async def chat(messages: list[ChatMessage]) -> ChatResponse:
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=300,
+            response_format={"type": "json_object"},
             messages=openai_messages,
         )
-        content = resp.choices[0].message.content.strip()
+        content = (resp.choices[0].message.content or "").strip()
+        logger.debug("LLM raw content: %r", content)
         if content.startswith("```"):
             content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
-        parsed = json.loads(content)
+        json_match = re.search(r"\{.*\}", content, re.DOTALL)
+        if not json_match:
+            raise ValueError(f"No JSON object found in LLM response: {content!r}")
+
+        parsed = json.loads(json_match.group())
         logger.info("LLM raw response: %s", parsed)
 
         parsed = _validate_response(parsed)

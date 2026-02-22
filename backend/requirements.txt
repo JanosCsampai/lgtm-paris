@@ -9,3 +9,6 @@ langchain-mongodb
 stripe>=7.0.0
 certifi
 google-search-results
+httpx
+beautifulsoup4
+lxml
