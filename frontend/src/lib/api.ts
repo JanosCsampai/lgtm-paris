@@ -35,3 +35,32 @@ export async function sendChatMessage(
   }
   return res.json();
 }
+
+export async function checkReplies(): Promise<{ replies_processed: number }> {
+  const res = await fetch(`${API_URL}/api/inquiries/check-replies`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    throw new Error(`Check replies failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function sendInquiry(
+  providerId: string,
+  serviceType: string
+): Promise<{ status: string }> {
+  const res = await fetch(`${API_URL}/api/inquiries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      provider_id: providerId,
+      service_type: serviceType,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Inquiry failed: ${res.status}`);
+  }
+  return res.json();
+}

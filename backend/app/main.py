@@ -1,10 +1,13 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
-from app.routers import observations, providers, service_types, stripe_payments, search, book, chat
+from app.routers import observations, providers, service_types, stripe_payments, search, book, chat, inquiries
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -36,6 +39,7 @@ app.include_router(search.router)
 app.include_router(stripe_payments.router)
 app.include_router(book.router)
 app.include_router(chat.router)
+app.include_router(inquiries.router)
 
 
 @app.get("/health")

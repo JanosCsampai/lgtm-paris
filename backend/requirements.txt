@@ -12,3 +12,4 @@ google-search-results
 httpx
 beautifulsoup4
 lxml
+linkup-sdk
