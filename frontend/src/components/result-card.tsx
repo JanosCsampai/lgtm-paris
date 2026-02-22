@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { MapPin, Star } from "lucide-react";
 import type { ProviderWithPrices } from "@/lib/types";
-import { CATEGORY_SWATCHES } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_SWATCHES } from "@/lib/constants";
+import { BookingModal } from "@/components/booking-modal";
 
 interface ResultCardProps {
   provider: ProviderWithPrices;
@@ -28,6 +30,7 @@ function formatPrice(price: number, currency: string): string {
 }
 
 export function ResultCard({ provider }: ResultCardProps) {
+  const [showModal, setShowModal] = useState(false);
   const lowest = getLowestPrice(provider);
   const categoryLabel = provider.category_label || provider.category;
   const swatch = CATEGORY_SWATCHES[provider.category] ?? "#6b7280";
@@ -90,12 +93,18 @@ export function ResultCard({ provider }: ResultCardProps) {
             <button className="text-[12px] text-muted-foreground/60 hover:text-foreground transition-colors">
               Why recommended?
             </button>
-            <button className="rounded-sm border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground">
+            <button
+              onClick={() => setShowModal(true)}
+              className="rounded-sm border border-border px-3.5 py-1.5 text-[13px] font-medium text-foreground/70 transition-colors hover:border-foreground/30 hover:text-foreground"
+            >
               Book now
             </button>
           </div>
         </div>
       </div>
+      {showModal && (
+        <BookingModal provider={provider} onClose={() => setShowModal(false)} />
+      )}
     </div>
   );
 }
