@@ -173,7 +173,19 @@ export function ResultCard({ provider, priceStats, scrapingInProgress }: ResultC
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">
-              {provider.name}
+              {provider.website ? (
+                <a
+                  href={provider.website.startsWith("http") ? provider.website : `http://${provider.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {provider.name}
+                </a>
+              ) : (
+                provider.name
+              )}
             </h3>
             <div className="mt-1 flex items-center gap-2">
               <span className="flex items-center gap-1.5">
