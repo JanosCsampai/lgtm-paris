@@ -54,6 +54,7 @@ async def condense_query(query: str) -> str:
             model="gpt-4o-mini",
             temperature=0,
             max_tokens=30,
+            timeout=8.0,
             messages=[
                 {"role": "system", "content": _CONDENSE_PROMPT},
                 {"role": "user", "content": query},

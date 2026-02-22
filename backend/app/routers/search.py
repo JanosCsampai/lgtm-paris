@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Query
 
 from app.models.search import SearchResponse
@@ -15,4 +17,15 @@ async def search_services(
         default=5000, gt=0, description="Search radius in metres"
     ),
 ):
-    return await search(q, lat, lng, radius_meters)
+    try:
+        return await asyncio.wait_for(
+            search(q, lat, lng, radius_meters),
+            timeout=12.0,
+        )
+    except asyncio.TimeoutError:
+        return SearchResponse(
+            query=q,
+            matched_service_types=[],
+            results=[],
+            discovery_triggered=False,
+        )
