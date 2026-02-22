@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 
 async def run_booking_agent(customer_data: dict, card_data: dict, appointment_data: dict):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, slow_mo=500)
+        browser = await p.chromium.launch(headless=False, slow_mo=100)
         page = await browser.new_page()
         await page.goto("http://localhost:3000")
 

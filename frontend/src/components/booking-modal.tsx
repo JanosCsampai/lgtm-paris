@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, X } from "lucide-react";
 import type { ProviderWithPrices } from "@/lib/types";
 
@@ -27,6 +27,14 @@ interface BookingModalProps {
   onClose: () => void;
 }
 
+const AGENT_STEPS = [
+  "Opening browser...",
+  "Filling in your details...",
+  "Selecting device & time...",
+  "Processing payment...",
+  "Confirming booking...",
+];
+
 export function BookingModal({ provider, onClose }: BookingModalProps) {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
@@ -35,20 +43,36 @@ export function BookingModal({ provider, onClose }: BookingModalProps) {
   const [date, setDate] = useState("");
   const [time, setTime] = useState(TIMES[0].value);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [stepIndex, setStepIndex] = useState(0);
+
+  // Cycle through agent steps while loading
+  useEffect(() => {
+    if (status !== "loading") return;
+    const interval = setInterval(() => {
+      setStepIndex((i) => (i + 1) % AGENT_STEPS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [status]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
+    setStepIndex(0);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
     try {
       const res = await fetch(`${API_URL}/api/book`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firstname, lastname, email, device, date, time }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error("Request failed");
       setStatus("success");
     } catch {
       setStatus("error");
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -58,13 +82,15 @@ export function BookingModal({ provider, onClose }: BookingModalProps) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative w-full max-w-md rounded-xl border border-border bg-background shadow-2xl overflow-hidden">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {/* Close button — hidden while agent is running */}
+        {status !== "loading" && (
+          <button
+            onClick={onClose}
+            className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-muted/80 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
 
         {/* Header */}
         <div className="border-b border-border bg-muted/40 px-6 py-4 pr-12">
@@ -78,7 +104,40 @@ export function BookingModal({ provider, onClose }: BookingModalProps) {
         </div>
 
         <div className="px-6 py-5">
-          {status === "success" ? (
+          {status === "loading" ? (
+            <div className="flex flex-col items-center py-6 text-center">
+              {/* Spinning robot icon */}
+              <div className="relative mb-5 flex h-16 w-16 items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary" />
+                <span className="text-2xl">🤖</span>
+              </div>
+              <p className="text-base font-semibold">Agent is booking your repair</p>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Watch the browser window — it&apos;s filling the form for you.
+              </p>
+              {/* Animated step indicator */}
+              <div className="mt-5 w-full rounded-lg border border-border bg-muted/40 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+                  <span className="text-[13px] text-muted-foreground transition-all duration-500">
+                    {AGENT_STEPS[stepIndex]}
+                  </span>
+                </div>
+                {/* Progress dots */}
+                <div className="mt-3 flex gap-1.5 justify-center">
+                  {AGENT_STEPS.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all duration-500 ${
+                        i === stepIndex ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : status === "success" ? (
             <div className="rounded-lg bg-green-500/10 border border-green-500/30 px-4 py-5 text-center">
               <p className="text-2xl mb-2">🎉</p>
               <p className="font-semibold text-green-400">Booking confirmed!</p>
